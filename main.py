@@ -1,6 +1,7 @@
 import pandas as pd
 import matplotlib.pyplot as plt
-# from statsmodels.tsa.seasonal import seasonal_decompose
+import time
+from statsmodels.tsa.seasonal import seasonal_decompose
 
 metadata = {
     "hourly": dict(path="./data/train_hourly.csv", freq=24, horizon=48),
@@ -15,6 +16,8 @@ metadata = {
 # and inside each category we store all the time series
 ts_dict = {}
 
+start_time = time.time()
+
 for key, value in metadata.items():
     file_path = value["path"]
 
@@ -26,17 +29,26 @@ for key, value in metadata.items():
             tokens = line.strip().split(",")
             serie_id = tokens[0].replace('"', "")
             values = pd.Series([float(x) for x in tokens[1:] if x != "NA"]).dropna()
+            decomposition = seasonal_decompose(
+                values, model="multiplicative", period=value["freq"]
+            )
 
-            # lets plot each time serie and store it in plots directory
-            plt.figure()
-            plt.grid(True)
-            values.plot(title=serie_id, color="teal")
+            fig = decomposition.plot()
+            fig.set_size_inches(10, 10)
+
+            # Access the first axis of the decomposition plot to customize the title
+            fig.axes[0].set_title(f"ID: {serie_id} - Multiplicative Decomposition")
+
+            # 3. Save and Clean up
+            plt.tight_layout()
             plt.savefig(f"plots/{key}_{serie_id}.png", dpi=300)
-            plt.close()
+            plt.close(fig)  # Close the specific figure
 
             file_dict[serie_id] = values
 
     ts_dict[key] = file_dict
 
-# print(ts_dict["hourly"].keys())
-print(type(ts_dict["hourly"]["H1"]))
+end_time = time.time()
+elapsed_time = end_time - start_time
+
+print(f"Time series loaded and ploted in {elapsed_time:.4f} seconds")
