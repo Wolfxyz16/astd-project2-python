@@ -16,7 +16,7 @@ metadata = {
 # and inside each category we store all the time series
 ts_dict = {}
 
-start_time = time.time()
+start_time = time.perf_counter()
 
 for key, value in metadata.items():
     file_path = value["path"]
@@ -48,7 +48,7 @@ for key, value in metadata.items():
 
     ts_dict[key] = file_dict
 
-end_time = time.time()
+end_time = time.perf_counter()
 elapsed_time = end_time - start_time
 
 print(f"Time series loaded and ploted in {elapsed_time:.4f} seconds")
