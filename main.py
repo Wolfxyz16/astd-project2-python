@@ -9,7 +9,7 @@ metadata = {
     "weekly": dict(path="./data/train_weekly.csv", freq=1, horizon=13),
     "monthly": dict(path="./data/train_monthly.csv", freq=12, horizon=18),
     "quarterly": dict(path="./data/train_quarterly.csv", freq=4, horizon=8),
-    "yearly": dict(path="./data/train_yearly.csv", freq=1, horizon=1),
+    "yearly": dict(path="./data/train_yearly.csv", freq=1, horizon=6),
 }
 
 # in ts_dict we store all the different categories (hourly, daily, ...)
