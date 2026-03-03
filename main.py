@@ -1,7 +1,8 @@
 import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
 from statsmodels.tsa.seasonal import seasonal_decompose
-import argparse
+from src.models import arima_model, theta_model
 
 metadata = {
     "hourly": dict(path="./data/train_hourly.csv", freq=24, horizon=48),
@@ -13,11 +14,18 @@ metadata = {
 }
 
 
+def smape(true, prediction):
+    numerator = (true - prediction).abs()
+    denominator = true.abs() + prediction.abs()
+    result = 200 * (numerator / denominator).mean()
+    return result
+
+
 def process_category(category_name, metadata, create_plots=False):
     """
     Load, clean and save decomposition plots for a single category.
     """
-    info = metadata[category_name]
+    info = metadata
     file_path = info["path"]
     freq = info["freq"]
 
@@ -70,16 +78,32 @@ def split_train_dev(category_ts_dict, horizon):
 
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("categoria", type=str, choices=list(metadata.keys()))
-    args = parser.parse_args()
+    results = {}
+    model = theta_model
+    # test loop
+    for key, value in metadata.items():
+        print({key})
+        # file path for model 1
+        filename = f"results/{key}_1.csv"
 
-    # Get the category that the user has written in the console
-    category = args.categoria
-    horizonte = metadata[category]["horizon"]
+        # process all time series from a csv file
+        horizon = metadata[key]["horizon"]
+        series = process_category(key, metadata[key])
+        train, dev = split_train_dev(series, horizon)
 
-    series = process_category(category, metadata)
-    train, dev = split_train_dev(series, horizonte)
+        # convert dict in a list of list (ID + value)
+        data_rows = [[serie_id] + list(s.values) for serie_id, s in dev.items()]
+        df_final = pd.DataFrame(data_rows)
+        df_final.columns = ["ID"] + [f"V{i}" for i in range(1, df_final.shape[1])]
+        df_final.to_csv(filename, index=False)
+
+        for id in train.keys():
+            print(f"{id}: smape(horizon = {horizon}, period = {value['freq']})")
+            results[id] = smape(dev[id], model(train[id], horizon, value["freq"]))
+
+    df_results = pd.DataFrame(list(results.items()))
+    df_results.to_csv(f"{model.__name__}_results.csv", index=False)
+    print("FINAL SCORE: ", df_results[1].mean())
 
 
 if __name__ == "__main__":
