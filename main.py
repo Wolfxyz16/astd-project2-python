@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from statsmodels.tsa.seasonal import seasonal_decompose
-from src.models import arima_model, theta_model
+from src.models import arima_model, theta_model, symbolic_genetic_model
 
 metadata = {
     "hourly": dict(path="./data/train_hourly.csv", freq=24, horizon=48),
@@ -14,11 +14,21 @@ metadata = {
 }
 
 
-def smape(true, prediction):
-    numerator = (true - prediction).abs()
-    denominator = true.abs() + prediction.abs()
-    result = 200 * (numerator / denominator).mean()
-    return result
+def smape(actual: pd.Series, forecast: pd.Series):
+    # Handle infinities by capping them to twice the maximum actual value
+    forecast = forecast.replace([np.inf, -np.inf], np.nan).fillna(actual.max() * 2)
+
+    # Calculate numerator and denominator
+    numerator = (forecast - actual).abs()
+    denominator = (actual.abs() + forecast.abs()) / 2
+
+    # Avoid division by zero: if denom is 0, error is 0
+    smape_elements = numerator.div(denominator).fillna(0.0)
+
+    # Cap individual errors at 200% to prevent extreme outliers
+    smape_elements[smape_elements > 2] = 2.0
+
+    return 100 * smape_elements.mean()
 
 
 def process_category(category_name, metadata, create_plots=False):
@@ -79,7 +89,7 @@ def split_train_dev(category_ts_dict, horizon):
 
 def main():
     results = {}
-    model = theta_model
+    model = symbolic_genetic_model
     # test loop
     for key, value in metadata.items():
         print({key})
