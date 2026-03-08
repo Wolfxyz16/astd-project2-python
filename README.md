@@ -1,6 +1,6 @@
 ### Project structure
 * `data`: directory to store all the original csv data
-* `esrnn_updated`: [TODO]
+* `esrnn_updated`: ESRNN implementation and evaluation for the forecasting competition
 * `main.py`: entry of the main application
 * `generate_equations.py`: use this file after predicting with the symbolic regression model, it generates all the calculated equations as png file
 * `outputs`: PySR outputs folder, not important
