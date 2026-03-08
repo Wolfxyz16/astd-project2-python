@@ -86,32 +86,7 @@ def smape(y_true, y_pred):
 
     return np.mean(numerator / denominator) * 100
 
-def fit_predict_sarima(train_series, horizon, freq):
-    """
-    Train SARIMA model for a single time series and return the forecast.
-    """
-    try:
-        arima_params = (2, 1, 1)
-        # if freq is 1 (daily, weekly, yearly), we remove the seasonal part
-        stationary_params = (1, 1, 1, freq) if freq > 1 else (0, 0, 0, 0)
-        
-        model = sm.tsa.SARIMAX(
-            train_series,
-            order=arima_params,
-            seasonal_order=stationary_params,
-            enforce_stationarity=False,
-            enforce_invertibility=False
-        )
-        
-        result = model.fit(disp=False)
-        return result.forecast(steps=horizon)
-        
-    except Exception as e:
-        print(f"  [Warning] Mathematical failure on series. Using Naive method.")
-        return np.array([train_series.iloc[-1]] * horizon)
-
-
-def fit_predict_auto_sarima(train_series, horizon, freq):
+def fit_predict_auto_arima(train_series, horizon, freq):
     """
     Looks for the best hyperparameters and trains the model automatically.
     """
@@ -163,7 +138,7 @@ def main():
         with open(save_path, "a") as f_out:
             for serie_id, full_values in full_series.items():
                 counter += 1       
-                prediction = fit_predict_auto_sarima(full_values, horizon, freq)
+                prediction = fit_predict_auto_arima(full_values, horizon, freq)
                 pred_str = ",".join([str(val) for val in prediction])
                 line = f'"{serie_id}",{pred_str}\n'
                 f_out.write(line)

@@ -111,8 +111,8 @@ def performance():
         Y_train = np.array(all_Y)
 
         base_model = lgb.LGBMRegressor(
-            n_estimators=100,
-            learning_rate=0.05,
+            n_estimators=2000,
+            learning_rate=0.03,
             max_depth=5, 
             random_state=42,
             n_jobs=-1,
@@ -150,6 +150,7 @@ def performance():
         if test_smape_list:
             cat_smape = np.mean(test_smape_list)
             final_results[category] = cat_smape
+            print(f"  [✔] {category.upper():<10} processed -> sMAPE: {cat_smape:>6.2f}%")
 
     print("Mean sMAPE LightGBM:\n")
     for cat, result in final_results.items():
@@ -228,5 +229,5 @@ def predict():
                 f_out.write(line)
 
 if __name__ == "__main__":
-    #performance()
-    predict()
+    performance()
+    #predict()
