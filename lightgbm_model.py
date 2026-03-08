@@ -112,7 +112,7 @@ def performance():
 
         base_model = lgb.LGBMRegressor(
             n_estimators=2000,
-            learning_rate=0.03,
+            learning_rate=0.1,
             max_depth=5, 
             random_state=42,
             n_jobs=-1,
