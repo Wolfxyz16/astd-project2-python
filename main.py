@@ -15,20 +15,24 @@ metadata = {
 
 
 def smape(actual: pd.Series, forecast: pd.Series):
-    # Handle infinities by capping them to twice the maximum actual value
-    forecast = forecast.replace([np.inf, -np.inf], np.nan).fillna(actual.max() * 2)
+    # Convert to numpy to avoid Pandas index alignment issues
+    a = actual.values
+    f = forecast.values
 
-    # Calculate numerator and denominator
-    numerator = (forecast - actual).abs()
-    denominator = (actual.abs() + forecast.abs()) / 2
+    # Handle infinities and NaNs
+    f = np.nan_to_num(f, nan=np.nanmean(a), posinf=np.nanmax(a) * 2, neginf=0)
 
-    # Avoid division by zero: if denom is 0, error is 0
-    smape_elements = numerator.div(denominator).fillna(0.0)
+    # Calculate sMAPE components
+    numerator = np.abs(f - a)
+    denominator = (np.abs(a) + np.abs(f)) / 2
 
-    # Cap individual errors at 200% to prevent extreme outliers
-    smape_elements[smape_elements > 2] = 2.0
+    # Avoid division by zero and compute mean
+    with np.errstate(divide="ignore", invalid="ignore"):
+        elements = np.divide(numerator, denominator)
+        elements = np.nan_to_num(elements, nan=0.0)
 
-    return 100 * smape_elements.mean()
+    # Cap at 200% (2.0)
+    return 100 * np.mean(np.clip(elements, 0, 2.0))
 
 
 def process_category(category_name, metadata, create_plots=False):
@@ -51,12 +55,11 @@ def process_category(category_name, metadata, create_plots=False):
 
             values = pd.Series([float(x) for x in tokens[1:] if x != "NA"]).dropna()
 
-            decomposition = seasonal_decompose(
-                values, model="multiplicative", period=freq
-            )
-
             # plot if the flag is on
             if create_plots:
+                decomposition = seasonal_decompose(
+                    values, model="multiplicative", period=freq
+                )
                 fig = decomposition.plot()
                 fig.set_size_inches(10, 10)
 
@@ -90,30 +93,40 @@ def split_train_dev(category_ts_dict, horizon):
 def main():
     results = {}
     model = symbolic_genetic_model
-    # test loop
-    for key, value in metadata.items():
-        print({key})
-        # file path for model 1
-        filename = f"results/{key}_1.csv"
 
-        # process all time series from a csv file
-        horizon = metadata[key]["horizon"]
-        series = process_category(key, metadata[key])
+    for key, info in metadata.items():
+        print(f"Processing Category: {key}")
+
+        horizon = info["horizon"]
+        freq = info["freq"]
+
+        # Load and split series
+        series = process_category(key, info)
+
         train, dev = split_train_dev(series, horizon)
 
-        # convert dict in a list of list (ID + value)
-        data_rows = [[serie_id] + list(s.values) for serie_id, s in dev.items()]
-        df_final = pd.DataFrame(data_rows)
-        df_final.columns = ["ID"] + [f"V{i}" for i in range(1, df_final.shape[1])]
-        df_final.to_csv(filename, index=False)
+        # List to store ONLY forecast rows
+        forecast_rows = []
 
-        for id in train.keys():
-            print(f"{id}: smape(horizon = {horizon}, period = {value['freq']})")
-            results[id] = smape(dev[id], model(train[id], horizon, value["freq"]))
+        for serie_id in series.keys():
+            prediction = model(train[serie_id], horizon, freq, serie_id)
+            forecast_rows.append([serie_id] + list(prediction))
+            score = smape(dev[serie_id], prediction)
+            results[serie_id] = score
 
-    df_results = pd.DataFrame(list(results.items()))
-    df_results.to_csv(f"{model.__name__}_results.csv", index=False)
-    print("FINAL SCORE: ", df_results[1].mean())
+        # Create DataFrame with exactly horizon columns (e.g., 48 for hourly)
+        df_forecasts = pd.DataFrame(forecast_rows)
+        df_forecasts.columns = ["ID"] + [f"F{i}" for i in range(1, horizon + 1)]
+
+        # Save results to CSV
+        output_file = f"results/{key}_1.csv"
+        df_forecasts.to_csv(output_file, index=False)
+        print(f"Saved: {output_file} with {len(df_forecasts.columns)} columns")
+
+    # Save summary of sMAPE scores
+    df_results = pd.DataFrame(list(results.items()), columns=["ID", "sMAPE"])
+    df_results.to_csv(f"{model.__name__}_scores.csv", index=False)
+    print("FINAL MEAN sMAPE: ", df_results["sMAPE"].mean())
 
 
 if __name__ == "__main__":
