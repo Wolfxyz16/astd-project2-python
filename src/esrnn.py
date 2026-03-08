@@ -26,8 +26,7 @@ with json_file.open("r", encoding="utf-8") as f:
 for freq in frequencies:
     params = configs[freq]
 
-    #X_train, X_val = train_val_split(freq, params["output_size"])
-    X_train, y_train, X_test, y_test = prepare_m4_data(dataset_name=freq, directory=str(DATA_DIR), num_obs=None)
+    X_train, y_train, _, _ = prepare_m4_data(dataset_name=freq, directory=str(DATA_DIR), num_obs=None)
 
     model = ESRNN(
         max_epochs=params["max_epochs"],
@@ -55,15 +54,6 @@ for freq in frequencies:
         device=device
     )
 
-    model.fit(X_train, y_train, X_test, y_test)
-
-    y_pred = model.predict(X_val)
-
-    y_pred_values = y_pred.sort_values(['unique_id', 'ds'])['y'].reset_index(drop=True)
-    y_val_values = X_val.sort_values(['unique_id', 'ds'])['y'].reset_index(drop=True)
-
-    smape_score = smape(y_val_values, y_pred_values)
-
-    print(f"SMAPE sobre {freq} ESRNN: {smape_score:.2f}%")
+    model.fit(X_train, y_train)
 
     torch.save(model, esrnn_dir / f"esrnn_{freq}.pt")
